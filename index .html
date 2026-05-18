@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d0d0d">
+<title>IRON LOG PRO</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+         signOut, onAuthStateChanged, updateProfile }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy,
+         limit, onSnapshot, doc, updateDoc, getDoc, setDoc, where,
+         deleteDoc, serverTimestamp, Timestamp, arrayUnion, arrayRemove }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+// Storage 미사용 — 사진은 base64로 Firestore에 직접 저장
+
+// ════════════════════════════════════════════
+//  🔥 Firebase 설정 — 본인 값으로 교체하세요
+//  Firebase 콘솔 → 프로젝트 설정 → 웹 앱 → SDK 설정
+// ════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyCvVJLfkir1jjcdlELRRCuSos5OTv7wt-o",
+  authDomain:        "ironlog-pro.firebaseapp.com",
+  projectId:         "ironlog-pro",
+  storageBucket:     "ironlog-pro.firebasestorage.app",
+  messagingSenderId: "945747917181",
+  appId:             "1:945747917181:web:456d119c8a57a70af73414"
+};
+// ════════════════════════════════════════════
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+window._fb = {
+  auth, db,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signOut, onAuthStateChanged, updateProfile,
+  collection, addDoc, getDocs, query, orderBy, limit,
+  onSnapshot, doc, updateDoc, getDoc, setDoc, where,
+  deleteDoc, serverTimestamp, Timestamp, arrayUnion, arrayRemove,
+};
+window.dispatchEvent(new Event('fb-ready'));
+</script>
+
+<style>
+:root {
+  --bg: #0d0d0d;
+  --s1: #161616;
+  --s2: #1e1e1e;
+  --s3: #282828;
+  --bd: #303030;
+  --bd2: #3a3a3a;
+  --lime: #d4ff00;
+  --orange: #ff5c1a;
+  --blue: #18c8ff;
+  --pink: #ff3d6e;
+  --tx: #f2f2f2;
+  --tx2: #999;
+  --tx3: #555;
+  --r: 14px;
+  --r2: 10px;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent }
+html,body { height:100%; overflow-x:hidden }
+body { background:var(--bg); color:var(--tx); font-family:'Noto Sans KR',sans-serif;
+       max-width:430px; margin:0 auto; padding-bottom:80px }
+
+/* ── BEBAS HEADING FONT ── */
+.beb { font-family:'Bebas Neue',cursive; letter-spacing:1px }
+
+/* ── SPLASH ── */
+#splash { position:fixed; inset:0; background:var(--bg); z-index:1000;
+          display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px }
+.sp-logo { font-family:'Bebas Neue',cursive; font-size:48px; letter-spacing:3px; color:var(--lime) }
+.sp-logo span { color:var(--tx) }
+.sp-sub { font-size:12px; color:var(--tx3) }
+.spin { width:22px; height:22px; border:2px solid var(--bd2);
+        border-top-color:var(--lime); border-radius:50%;
+        animation:spin .7s linear infinite; margin-top:10px }
+@keyframes spin { to { transform:rotate(360deg) } }
+
+/* ── AUTH ── */
+#authWrap { display:none; position:fixed; inset:0; background:var(--bg);
+            z-index:900; overflow-y:auto }
+.auth-inner { padding:0 24px 60px; max-width:400px; margin:0 auto }
+.auth-hero { text-align:center; padding:56px 0 32px }
+.auth-logo { font-family:'Bebas Neue',cursive; font-size:40px; letter-spacing:3px; color:var(--lime) }
+.auth-logo span { color:var(--tx) }
+.auth-tagline { font-size:13px; color:var(--tx2); margin-top:6px; line-height:1.8 }
+.atabs { display:grid; grid-template-columns:1fr 1fr;
+         border:1px solid var(--bd); border-radius:var(--r);
+         overflow:hidden; margin-bottom:22px }
+.atab { padding:13px; text-align:center; font-size:14px; font-weight:500;
+        color:var(--tx3); cursor:pointer; background:var(--s1);
+        transition:all .2s; border:none }
+.atab.on { background:var(--s2); color:var(--lime) }
+.ai { width:100%; background:var(--s2); border:1px solid var(--bd);
+      border-radius:var(--r2); padding:15px 16px; color:var(--tx);
+      font-size:15px; font-family:'Noto Sans KR',sans-serif;
+      outline:none; margin-bottom:10px; transition:border-color .2s }
+.ai:focus { border-color:var(--lime) }
+.ai::placeholder { color:var(--tx3) }
+.abtn { width:100%; padding:16px; background:var(--lime); color:#000;
+        border:none; border-radius:var(--r2); font-family:'Bebas Neue',cursive;
+        font-size:20px; letter-spacing:2px; cursor:pointer;
+        transition:opacity .2s; margin-top:4px }
+.abtn:disabled { opacity:.4; cursor:not-allowed }
+.aerr { color:var(--pink); font-size:13px; text-align:center;
+        margin-top:10px; min-height:18px; line-height:1.6 }
+.anote { font-size:12px; color:var(--tx3); text-align:center;
+         margin-top:18px; line-height:1.9 }
+
+/* ── HEADER ── */
+.hdr { position:sticky; top:0; background:var(--bg); z-index:100;
+       border-bottom:1px solid var(--bd); padding:12px 16px;
+       display:flex; align-items:center; justify-content:space-between }
+.h-logo { font-family:'Bebas Neue',cursive; font-size:22px;
+          letter-spacing:2px; color:var(--lime) }
+.h-logo span { color:var(--tx) }
+.h-right { display:flex; align-items:center; gap:8px }
+.streak-pill { background:var(--lime); color:#000; font-family:'Bebas Neue',cursive;
+               font-size:14px; letter-spacing:1px; padding:4px 12px; border-radius:20px }
+
+/* ── BOTTOM NAV ── */
+.bnav { position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+        width:100%; max-width:430px; background:var(--bg);
+        border-top:1px solid var(--bd); display:flex;
+        padding:8px 0 20px; z-index:100 }
+.nb { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+      background:none; border:none; padding:7px 0; color:var(--tx3);
+      font-size:10px; cursor:pointer; transition:color .2s }
+.nb svg { width:22px; height:22px; stroke-width:1.7 }
+.nb.on { color:var(--lime) }
+
+/* ── PAGES ── */
+.pg { display:none; padding:16px }
+.pg.on { display:block }
+
+/* ── SECTION LABEL ── */
+.sl { font-family:'Bebas Neue',cursive; font-size:13px; letter-spacing:1.5px;
+      color:var(--tx3); margin-bottom:8px }
+
+/* ── STAT ROW ── */
+.stat3 { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:18px }
+.sc { background:var(--s2); border:1px solid var(--bd); border-radius:var(--r);
+      padding:12px 10px; text-align:center }
+.sn { font-family:'Bebas Neue',cursive; font-size:26px; display:block; margin-bottom:1px }
+.sn.l { color:var(--lime) } .sn.o { color:var(--orange) } .sn.b { color:var(--blue) }
+.sk { font-size:10px; color:var(--tx3); text-transform:uppercase; letter-spacing:.4px }
+
+/* ── LOG FORM ── */
+.log-form { background:var(--s1); border:1px solid var(--bd);
+            border-radius:var(--r); padding:16px; margin-bottom:16px }
+
+/* Type pills */
+.type-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px }
+.tp { padding:11px 6px; border:1px solid var(--bd); border-radius:var(--r2);
+      background:var(--s2); color:var(--tx3); font-size:13px; font-weight:500;
+      cursor:pointer; text-align:center; transition:all .2s; user-select:none }
+.tp.on-w { border-color:var(--lime); color:var(--lime); background:rgba(212,255,0,.08) }
+.tp.on-r { border-color:var(--orange); color:var(--orange); background:rgba(255,92,26,.08) }
+.tp.on-d { border-color:var(--blue); color:var(--blue); background:rgba(24,200,255,.08) }
+
+/* Form inputs */
+.fi { width:100%; background:var(--s2); border:1px solid var(--bd);
+      border-radius:var(--r2); padding:12px 14px; color:var(--tx);
+      font-size:14px; font-family:'Noto Sans KR',sans-serif;
+      outline:none; transition:border-color .2s; display:block }
+.fi:focus { border-color:var(--lime) }
+.fi::placeholder { color:var(--tx3) }
+textarea.fi { resize:none; line-height:1.8 }
+select.fi { cursor:pointer }
+.frow { display:grid; grid-template-columns:1fr 1fr; gap:10px }
+.frow3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px }
+.fg { margin-bottom:12px }
+.fl { font-size:11px; color:var(--tx2); margin-bottom:5px; display:block;
+      text-transform:uppercase; letter-spacing:.4px }
+
+/* Section blocks */
+.form-section { display:none }
+.form-section.vis { display:block }
+
+/* Pace box */
+.pace-box { background:var(--s2); border:1px solid var(--bd); border-radius:var(--r2);
+            padding:11px; text-align:center }
+.pace-val { font-family:'Bebas Neue',cursive; font-size:22px; color:var(--orange) }
+.pace-unit { font-size:10px; color:var(--tx3); margin-top:1px }
+
+/* Quick tags */
+.qtags { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px }
+.qt { background:var(--s2); border:1px solid var(--bd); border-radius:20px;
+      padding:5px 10px; font-size:11px; color:var(--tx3);
+      cursor:pointer; transition:all .2s; user-select:none }
+.qt.on { border-color:var(--lime); color:var(--lime); background:rgba(212,255,0,.08) }
+
+/* Photo upload */
+.photo-drop { border:2px dashed var(--bd); border-radius:var(--r2);
+              padding:18px; text-align:center; cursor:pointer;
+              transition:border-color .2s; position:relative; overflow:hidden }
+.photo-drop:hover { border-color:var(--lime) }
+.photo-drop input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100% }
+.photo-ico { font-size:24px; opacity:.35; margin-bottom:3px }
+.photo-drop p { font-size:12px; color:var(--tx3) }
+.prev-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px }
+.prev-thumb { position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden }
+.prev-thumb img { width:100%; height:100%; object-fit:cover }
+.del-p { position:absolute; top:3px; right:3px; background:rgba(0,0,0,.75);
+         border:none; color:#fff; width:20px; height:20px; border-radius:50%;
+         font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center }
+
+/* Save button */
+.sbtn { width:100%; padding:15px; border:none; border-radius:var(--r2);
+        font-family:'Bebas Neue',cursive; font-size:20px; letter-spacing:2px;
+        cursor:pointer; margin-top:4px; transition:opacity .15s }
+.sbtn:disabled { opacity:.4; cursor:not-allowed }
+.sbtn.l { background:var(--lime); color:#000 }
+.sbtn.o { background:var(--orange); color:#fff }
+.sbtn.b { background:var(--blue); color:#000 }
+
+/* ── WEEK CHART ── */
+.wchart { display:flex; align-items:flex-end; gap:6px; height:64px; margin-bottom:20px }
+.wb { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+      height:100%; justify-content:flex-end }
+.wbar { width:100%; border-radius:4px 4px 0 0; min-height:3px; transition:height .5s }
+.wbar.l { background:var(--lime) } .wbar.o { background:var(--orange) }
+.wbar.b { background:var(--blue) } .wbar.e { background:var(--s3) }
+.wbl { font-size:9px; color:var(--tx3); font-family:'Bebas Neue',cursive; letter-spacing:.5px }
+
+/* ── CALENDAR ── */
+.cal-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px }
+.cal-month { font-family:'Bebas Neue',cursive; font-size:20px; letter-spacing:1px }
+.cal-nav { background:var(--s2); border:1px solid var(--bd); border-radius:8px;
+           color:var(--tx); padding:6px 14px; cursor:pointer; font-size:14px }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin-bottom:20px }
+.cdl { text-align:center; font-size:10px; color:var(--tx3);
+       font-family:'Bebas Neue',cursive; letter-spacing:.5px; padding:4px 0 }
+.cd { aspect-ratio:1; border-radius:8px; display:flex; align-items:center; justify-content:center;
+      font-size:12px; cursor:pointer; position:relative; transition:all .2s; color:var(--tx3) }
+.cd.has { background:rgba(212,255,0,.12); color:var(--lime); font-weight:700 }
+.cd.has-r { background:rgba(255,92,26,.12); color:var(--orange); font-weight:700 }
+.cd.has-d { background:rgba(24,200,255,.12); color:var(--blue); font-weight:700 }
+.cd.has-m { background:rgba(212,255,0,.18); color:var(--lime); font-weight:700 }
+.cd.today { box-shadow:inset 0 0 0 1.5px var(--lime) }
+.cd.empty { cursor:default }
+.cd-dot { position:absolute; bottom:3px; left:50%; transform:translateX(-50%);
+          display:flex; gap:2px }
+.cd-dot span { width:4px; height:4px; border-radius:50%; display:block }
+
+/* Cal day log list */
+.day-logs { display:flex; flex-direction:column; gap:10px }
+.day-log-item { background:var(--s2); border:1px solid var(--bd);
+                border-radius:var(--r2); padding:14px; cursor:pointer;
+                transition:border-color .2s }
+.day-log-item:active { border-color:var(--lime) }
+.dli-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px }
+.dli-type { font-size:10px; font-weight:700; padding:3px 8px; border-radius:10px }
+.dli-type.w { background:rgba(212,255,0,.1); color:var(--lime) }
+.dli-type.r { background:rgba(255,92,26,.1); color:var(--orange) }
+.dli-type.d { background:rgba(24,200,255,.1); color:var(--blue) }
+.dli-title { font-size:14px; font-weight:500; margin-bottom:4px }
+.dli-preview { font-size:12px; color:var(--tx2); line-height:1.6;
+               display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden }
+
+/* ── FEED ── */
+.fpills { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; margin-bottom:14px }
+.fpills::-webkit-scrollbar { display:none }
+.fp { flex-shrink:0; padding:6px 14px; border:1px solid var(--bd); border-radius:20px;
+      font-size:12px; color:var(--tx3); cursor:pointer; background:var(--s2); transition:all .2s }
+.fp.fl-a { border-color:var(--lime); color:var(--lime); background:rgba(212,255,0,.08) }
+.fp.fl-r { border-color:var(--orange); color:var(--orange); background:rgba(255,92,26,.08) }
+.fp.fl-d { border-color:var(--blue); color:var(--blue); background:rgba(24,200,255,.08) }
+
+.fi-card { background:var(--s1); border:1px solid var(--bd);
+           border-radius:var(--r); margin-bottom:14px; overflow:hidden }
+.fi-hdr { padding:13px 14px 10px; display:flex; align-items:center; justify-content:space-between }
+.fi-user { display:flex; align-items:center; gap:10px }
+.av { width:36px; height:36px; border-radius:50%; display:flex; align-items:center;
+      justify-content:center; font-family:'Bebas Neue',cursive; font-size:15px; flex-shrink:0 }
+.av.w { background:rgba(212,255,0,.15); color:var(--lime) }
+.av.r { background:rgba(255,92,26,.15); color:var(--orange) }
+.av.d { background:rgba(24,200,255,.15); color:var(--blue) }
+.fi-name { font-size:14px; font-weight:500 }
+.fi-time { font-size:11px; color:var(--tx3); margin-top:1px }
+.tb { font-size:10px; padding:3px 8px; border-radius:10px; font-weight:700 }
+.tb.w { background:rgba(212,255,0,.1); color:var(--lime) }
+.tb.r { background:rgba(255,92,26,.1); color:var(--orange) }
+.tb.d { background:rgba(24,200,255,.1); color:var(--blue) }
+.fi-body { padding:0 14px 12px }
+.fi-title { font-size:15px; font-weight:500; margin-bottom:6px }
+.fi-txt { font-size:13px; color:var(--tx2); line-height:1.7;
+          display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden }
+.run-row { display:flex; gap:16px; padding:0 14px 10px; flex-wrap:wrap }
+.rr { text-align:center }
+.rr-v { font-family:'Bebas Neue',cursive; font-size:18px; color:var(--orange) }
+.rr-l { font-size:10px; color:var(--tx3) }
+.macro-row { font-size:11px; color:var(--tx3); margin-bottom:6px; font-weight:500 }
+
+/* Feed photos */
+.feed-photos { margin:0 0 2px }
+.feed-photos img { width:100%; display:block; object-fit:cover }
+.feed-photos.s1 img { max-height:240px }
+.feed-photos.s2 { display:grid; grid-template-columns:1fr 1fr; gap:2px }
+.feed-photos.s2 img { aspect-ratio:1 }
+.feed-photos.s3 { display:grid; grid-template-columns:2fr 1fr; gap:2px }
+.feed-photos.s3 img:first-child { aspect-ratio:4/3 }
+.feed-photos.s3 .side { display:grid; gap:2px }
+.feed-photos.s3 .side img { aspect-ratio:1 }
+
+/* Feed footer */
+.fi-foot { padding:10px 14px; border-top:1px solid var(--bd);
+           display:flex; align-items:center; gap:14px }
+.like-b { background:none; border:none; color:var(--tx3); font-size:12px;
+          cursor:pointer; display:flex; align-items:center; gap:5px;
+          transition:color .2s; padding:0 }
+.like-b.on { color:var(--pink) }
+.like-b svg { width:16px; height:16px }
+.cmt-b { background:none; border:none; color:var(--tx3); font-size:12px;
+         cursor:pointer; display:flex; align-items:center; gap:5px; padding:0 }
+.cmt-b svg { width:16px; height:16px }
+
+/* Comments inside card */
+.cmts-wrap { padding:0 14px 12px; border-top:1px solid var(--bd2) }
+.cmt-item { padding:10px 0; border-bottom:1px solid var(--bd2); display:flex; gap:10px }
+.cmt-item:last-child { border-bottom:none }
+.cmt-av { width:28px; height:28px; border-radius:50%; background:var(--s3);
+          display:flex; align-items:center; justify-content:center;
+          font-family:'Bebas Neue',cursive; font-size:12px; color:var(--tx2); flex-shrink:0 }
+.cmt-body { flex:1 }
+.cmt-name { font-size:12px; font-weight:700; margin-bottom:2px }
+.cmt-text { font-size:13px; color:var(--tx2); line-height:1.6 }
+.cmt-time { font-size:10px; color:var(--tx3); margin-top:3px }
+.cmt-del { background:none; border:none; color:var(--tx3); font-size:11px; cursor:pointer; padding:0; margin-left:auto }
+.cmt-input-row { display:flex; gap:8px; padding:10px 14px; border-top:1px solid var(--bd) }
+.cmt-fi { flex:1; background:var(--s2); border:1px solid var(--bd); border-radius:20px;
+          padding:9px 14px; color:var(--tx); font-size:13px;
+          font-family:'Noto Sans KR',sans-serif; outline:none; transition:border-color .2s }
+.cmt-fi:focus { border-color:var(--lime) }
+.cmt-fi::placeholder { color:var(--tx3) }
+.cmt-send { background:var(--lime); border:none; border-radius:20px; padding:9px 16px;
+            color:#000; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap }
+
+/* ── PROFILE ── */
+.prof-hero { text-align:center; padding:20px 0 16px }
+.prof-av { width:68px; height:68px; border-radius:50%; margin:0 auto 10px;
+           display:flex; align-items:center; justify-content:center;
+           font-family:'Bebas Neue',cursive; font-size:28px;
+           background:rgba(212,255,0,.12); color:var(--lime); border:2px solid var(--lime) }
+.prof-name { font-size:18px; font-weight:700 }
+.prof-email { font-size:12px; color:var(--tx3); margin-top:2px }
+.pstat3 { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:20px }
+.ps { background:var(--s2); border:1px solid var(--bd); border-radius:var(--r); padding:14px; text-align:center }
+.psn { font-family:'Bebas Neue',cursive; font-size:26px; display:block; margin-bottom:2px }
+.psl { font-size:10px; color:var(--tx3) }
+.info-box { background:var(--s1); border:1px solid var(--bd); border-radius:var(--r);
+            padding:16px; margin-bottom:12px }
+.info-box p { font-size:13px; color:var(--tx2); line-height:2 }
+.info-box strong { color:var(--tx) }
+.logout-b { width:100%; padding:14px; background:var(--s1); border:1px solid var(--bd);
+            border-radius:var(--r2); color:var(--pink); font-size:14px; cursor:pointer; margin-top:4px }
+
+/* ── MODAL (detail view) ── */
+.modal-ov { display:none; position:fixed; inset:0; background:rgba(0,0,0,.9);
+            z-index:400; padding:12px; align-items:flex-end }
+.modal-ov.on { display:flex }
+.modal-box { background:var(--s1); border:1px solid var(--bd);
+             border-radius:var(--r) var(--r) 12px 12px;
+             width:100%; max-height:90vh; overflow-y:auto;
+             animation:slideUp .25s ease }
+@keyframes slideUp { from{transform:translateY(24px);opacity:0} to{transform:translateY(0);opacity:1} }
+.mod-imgs { border-radius:var(--r) var(--r) 0 0; overflow:hidden }
+.mod-imgs img { width:100%; display:block; max-height:260px; object-fit:cover }
+.mod-imgs-grid { display:grid; grid-template-columns:1fr 1fr; gap:2px; border-radius:var(--r) var(--r) 0 0; overflow:hidden }
+.mod-imgs-grid img { width:100%; aspect-ratio:1; object-fit:cover; display:block }
+.mod-body { padding:18px }
+.mod-type { font-size:10px; font-weight:700; margin-bottom:6px }
+.mod-type.w{color:var(--lime)} .mod-type.r{color:var(--orange)} .mod-type.d{color:var(--blue)}
+.mod-title { font-size:18px; font-weight:700; margin-bottom:4px }
+.mod-date { font-size:12px; color:var(--tx3); margin-bottom:14px }
+.mod-stats { display:flex; border:1px solid var(--bd); border-radius:var(--r2);
+             overflow:hidden; margin-bottom:14px }
+.mst { flex:1; padding:11px; text-align:center; border-right:1px solid var(--bd) }
+.mst:last-child { border-right:none }
+.mst-v { font-family:'Bebas Neue',cursive; font-size:18px }
+.mst-v.o{color:var(--orange)} .mst-v.b{color:var(--blue)}
+.mst-l { font-size:10px; color:var(--tx3) }
+.mod-text { font-size:14px; line-height:2; color:#ccc; white-space:pre-wrap; word-break:break-word }
+.mod-close { width:100%; padding:13px; background:var(--s2); border:1px solid var(--bd);
+             border-radius:var(--r2); color:var(--tx); font-size:14px; cursor:pointer; margin-top:16px }
+
+/* ── TOAST ── */
+.toast { position:fixed; bottom:100px; left:50%;
+         transform:translateX(-50%) translateY(16px);
+         background:var(--lime); color:#000; padding:10px 22px;
+         border-radius:30px; font-size:12px; font-weight:700;
+         font-family:'Bebas Neue',cursive; letter-spacing:1px;
+         opacity:0; transition:all .3s; z-index:700;
+         white-space:nowrap; pointer-events:none }
+.toast.on { opacity:1; transform:translateX(-50%) translateY(0) }
+
+/* ── LOADING / EMPTY ── */
+.ld { display:flex; align-items:center; justify-content:center;
+      padding:40px; color:var(--tx3); font-size:13px; gap:10px }
+.empty { text-align:center; padding:48px 20px }
+.empty-ico { font-size:36px; opacity:.25; margin-bottom:8px }
+.empty-txt { font-size:13px; color:var(--tx3) }
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="sp-logo">IRON<span> LOG</span></div>
+  <div class="sp-sub">로딩 중...</div>
+  <div class="spin"></div>
+</div>
+
+<!-- AUTH -->
+<div id="authWrap">
+  <div class="auth-inner">
+    <div class="auth-hero">
+      <div class="auth-logo">IRON<span> LOG</span></div>
+      <div class="auth-tagline">운동 · 런닝 · 식단 · 사진 인증<br>모든 기록이 영구 저장됩니다 💪</div>
+    </div>
+    <div class="atabs">
+      <button class="atab on" onclick="setMode('login')">로그인</button>
+      <button class="atab" onclick="setMode('signup')">회원가입</button>
+    </div>
+    <div id="nickWrap" style="display:none">
+      <input class="ai" id="aNick" placeholder="닉네임 (2~10자)" maxlength="10">
+    </div>
+    <input class="ai" id="aEmail" type="email" placeholder="이메일">
+    <input class="ai" id="aPw" type="password" placeholder="비밀번호 (6자 이상)"
+           onkeydown="if(event.key==='Enter')doAuth()">
+    <button class="abtn" id="aBtn" onclick="doAuth()">시작하기</button>
+    <div class="aerr" id="aErr"></div>
+    <div class="anote">이메일/비밀번호로 계정을 만들면<br>어떤 기기에서도 내 기록을 볼 수 있어요.<br>모든 사용자의 기록이 피드에 공유됩니다.</div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app" style="display:none">
+
+  <div class="hdr">
+    <div class="h-logo">IRON<span> LOG</span></div>
+    <div class="h-right">
+      <div class="streak-pill" id="streakPill">🔥 0</div>
+    </div>
+  </div>
+
+  <!-- ── PAGE 0: 기록 (통합) ── -->
+  <div class="pg on" id="pg0">
+    <!-- Stats -->
+    <div class="stat3" style="margin-top:4px">
+      <div class="sc"><span class="sn l" id="s-wt">0</span><span class="sk">운동</span></div>
+      <div class="sc"><span class="sn o" id="s-rt">0</span><span class="sk">런닝</span></div>
+      <div class="sc"><span class="sn b" id="s-dt">0</span><span class="sk">식단</span></div>
+    </div>
+
+    <!-- Week chart -->
+    <div class="sl">이번 주</div>
+    <div class="wchart" id="wchart"></div>
+
+    <!-- Log Form -->
+    <div class="sl">오늘 기록 남기기</div>
+    <div class="log-form">
+
+      <!-- Type selector -->
+      <div class="type-row">
+        <div class="tp on-w" data-t="w" onclick="setType('w')">💪 운동</div>
+        <div class="tp" data-t="r" onclick="setType('r')">🏃 런닝</div>
+        <div class="tp" data-t="d" onclick="setType('d')">🥗 식단</div>
+      </div>
+
+      <!-- Common: title -->
+      <div class="fg">
+        <input class="fi" id="fTitle" placeholder="제목 (선택)" maxlength="30">
+      </div>
+
+      <!-- WORKOUT section -->
+      <div class="form-section vis" id="fs-w">
+        <div class="fg">
+          <textarea class="fi" id="fWText" rows="6"
+            placeholder="운동 내용을 자유롭게 적어요 ✍️&#10;&#10;벤치프레스 60kg × 3세트&#10;덤벨 플라이 12kg × 4세트&#10;&#10;느낀 점, 다음 목표도 OK!"></textarea>
+        </div>
+        <div class="fg">
+          <div class="sl">빠른 태그</div>
+          <div class="qtags" id="qtags">
+            <div class="qt" data-tag="#가슴">#가슴</div>
+            <div class="qt" data-tag="#등">#등</div>
+            <div class="qt" data-tag="#하체">#하체</div>
+            <div class="qt" data-tag="#어깨">#어깨</div>
+            <div class="qt" data-tag="#팔">#팔</div>
+            <div class="qt" data-tag="#유산소">#유산소</div>
+            <div class="qt" data-tag="#전신">#전신</div>
+            <div class="qt" data-tag="#PT">#PT</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RUNNING section -->
+      <div class="form-section" id="fs-r">
+        <div class="frow fg">
+          <div>
+            <label class="fl">거리 (km)</label>
+            <input class="fi" id="fDist" type="number" step="0.1" min="0" placeholder="5.0" oninput="calcPace()">
+          </div>
+          <div>
+            <label class="fl">시간 (분)</label>
+            <input class="fi" id="fTime" type="number" min="0" placeholder="30" oninput="calcPace()">
+          </div>
+        </div>
+        <div class="frow3 fg">
+          <div>
+            <label class="fl">페이스</label>
+            <div class="pace-box"><div class="pace-val" id="paceDisp">—</div><div class="pace-unit">min/km</div></div>
+          </div>
+          <div>
+            <label class="fl">칼로리</label>
+            <input class="fi" id="fRCal" type="number" min="0" placeholder="250" style="padding:10px;font-size:13px">
+          </div>
+          <div>
+            <label class="fl">심박수</label>
+            <input class="fi" id="fBpm" type="number" min="0" placeholder="155" style="padding:10px;font-size:13px">
+          </div>
+        </div>
+        <div class="fg">
+          <textarea class="fi" id="fRText" rows="3"
+            placeholder="코스 / 메모 (선택)&#10;예) 한강 잠원지구 왕복, 개인 기록 갱신! 🎉"></textarea>
+        </div>
+      </div>
+
+      <!-- DIET section -->
+      <div class="form-section" id="fs-d">
+        <div class="frow fg">
+          <div>
+            <label class="fl">식사 종류</label>
+            <select class="fi" id="fMeal">
+              <option>🌅 아침</option><option>☀️ 점심</option>
+              <option selected>🌙 저녁</option><option>🍎 간식</option><option>💊 보충제</option>
+            </select>
+          </div>
+          <div>
+            <label class="fl">칼로리 (kcal)</label>
+            <input class="fi" id="fDCal" type="number" min="0" placeholder="650">
+          </div>
+        </div>
+        <div class="frow3 fg">
+          <div><label class="fl">단백질 g</label><input class="fi" id="fPro" type="number" min="0" placeholder="45" style="padding:10px;font-size:13px"></div>
+          <div><label class="fl">탄수화물 g</label><input class="fi" id="fCarb" type="number" min="0" placeholder="80" style="padding:10px;font-size:13px"></div>
+          <div><label class="fl">지방 g</label><input class="fi" id="fFat" type="number" min="0" placeholder="20" style="padding:10px;font-size:13px"></div>
+        </div>
+        <div class="fg">
+          <textarea class="fi" id="fDText" rows="3"
+            placeholder="오늘 뭐 먹었나요? 🥗&#10;현미밥 200g, 닭가슴살 150g, 계란 2개..."></textarea>
+        </div>
+      </div>
+
+      <!-- 📸 사진 인증 (Firestore 직접 저장, 최대 2장) -->
+      <div class="fg">
+        <div class="sl">📸 인증 사진 (최대 2장)</div>
+        <div class="photo-drop" id="photoDropArea">
+          <input type="file" accept="image/*" multiple id="photoInput" onchange="handlePhoto(this)">
+          <div class="photo-ico">📷</div>
+          <p style="font-size:13px;color:var(--tx3)">탭해서 사진 추가</p>
+          <p style="font-size:11px;color:var(--tx3);margin-top:3px">자동으로 압축되어 저장됩니다</p>
+        </div>
+        <div class="prev-grid" id="photoPrev"></div>
+      </div>
+
+      <button class="sbtn l" id="saveBtn" onclick="saveLog()">💾 기록 저장</button>
+    </div>
+  </div>
+
+  <!-- ── PAGE 1: 캘린더 ── -->
+  <div class="pg" id="pg1">
+    <div style="margin-top:4px">
+      <div class="cal-hdr">
+        <button class="cal-nav" onclick="changeMonth(-1)">◀</button>
+        <div class="cal-month" id="calTitle"></div>
+        <button class="cal-nav" onclick="changeMonth(1)">▶</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="sl" id="calDayLabel">기록 선택</div>
+      <div id="calDayLogs"><div class="empty"><div class="empty-ico">📅</div><div class="empty-txt">날짜를 탭해서 기록을 확인하세요</div></div></div>
+    </div>
+  </div>
+
+  <!-- ── PAGE 2: 피드 ── -->
+  <div class="pg" id="pg2">
+    <div style="margin-top:4px">
+      <div class="fpills">
+        <div class="fp fl-a" onclick="setFeed('all',this)">전체</div>
+        <div class="fp" onclick="setFeed('w',this)">💪 운동</div>
+        <div class="fp" onclick="setFeed('r',this)">🏃 런닝</div>
+        <div class="fp" onclick="setFeed('d',this)">🥗 식단</div>
+      </div>
+      <div id="feedList"><div class="ld"><div class="spin"></div> 피드 불러오는 중...</div></div>
+    </div>
+  </div>
+
+  <!-- ── PAGE 3: 프로필 ── -->
+  <div class="pg" id="pg3">
+    <div style="margin-top:4px">
+      <div class="prof-hero">
+        <div class="prof-av" id="profAv">?</div>
+        <div class="prof-name" id="profName">—</div>
+        <div class="prof-email" id="profEmail"></div>
+      </div>
+      <div class="pstat3">
+        <div class="ps"><span class="psn" style="color:var(--lime)" id="pp-w">0</span><span class="psl">운동</span></div>
+        <div class="ps"><span class="psn" style="color:var(--orange)" id="pp-r">0</span><span class="psl">런닝</span></div>
+        <div class="ps"><span class="psn" style="color:var(--blue)" id="pp-d">0</span><span class="psl">식단</span></div>
+      </div>
+      <div class="info-box"><p><strong>계정 정보</strong><br>이메일/비밀번호 계정으로 로그인 중이에요.<br>어떤 기기에서도 같은 계정으로 로그인하면<br>모든 기록을 볼 수 있습니다.</p></div>
+      <div class="info-box"><p><strong>데이터 공유</strong><br>앱을 사용하는 모든 사람의 기록이<br>피드 탭에서 함께 공유됩니다 👥</p></div>
+      <button class="logout-b" onclick="doLogout()">🚪 로그아웃</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bnav">
+    <button class="nb on" onclick="goTab(0)" id="nav0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>기록
+    </button>
+    <button class="nb" onclick="goTab(1)" id="nav1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>캘린더
+    </button>
+    <button class="nb" onclick="goTab(2)" id="nav2">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>피드
+    </button>
+    <button class="nb" onclick="goTab(3)" id="nav3">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>나
+    </button>
+  </div>
+</div><!-- /app -->
+
+<!-- DETAIL MODAL -->
+<div class="modal-ov" id="modOv" onclick="if(event.target===this)closeMod()">
+  <div class="modal-box">
+    <div id="modImgs"></div>
+    <div class="mod-body">
+      <div class="mod-type" id="modType"></div>
+      <div class="mod-title" id="modTitle"></div>
+      <div class="mod-date" id="modDate"></div>
+      <div id="modStats"></div>
+      <div class="mod-text" id="modText"></div>
+      <button class="mod-close" onclick="closeMod()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+const KD = ['일','월','화','수','목','금','토'];
+let fb, me;
+let myLogs = [], feedLogs = [], unsubFeed = null;
+let curType = 'w', curFilter = 'all', curPhotos = [];
+let calDate = new Date(), selectedDate = null;
+let authMode = 'login';
+let openCmtIds = new Set();
+
+// ── Firebase ready ──
+window.addEventListener('fb-ready', () => {
+  fb = window._fb;
+  fb.onAuthStateChanged(fb.auth, u => {
+    document.getElementById('splash').style.display = 'none';
+    if (u) { me = u; showApp(); }
+    else showAuth();
+  });
+});
+
+// ══════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════
+function setMode(m) {
+  authMode = m;
+  document.getElementById('nickWrap').style.display = m === 'signup' ? 'block' : 'none';
+  document.querySelectorAll('.atab').forEach((t,i) => t.classList.toggle('on', i === (m==='login'?0:1)));
+  document.getElementById('aBtn').textContent = m === 'login' ? '로그인' : '회원가입';
+  document.getElementById('aErr').textContent = '';
+}
+
+async function doAuth() {
+  const email = document.getElementById('aEmail').value.trim();
+  const pw    = document.getElementById('aPw').value;
+  const nick  = document.getElementById('aNick').value.trim();
+  const btn   = document.getElementById('aBtn');
+  const err   = document.getElementById('aErr');
+  if (!email || !pw) { err.textContent = '이메일과 비밀번호를 입력하세요.'; return; }
+  if (authMode === 'signup' && nick.length < 2) { err.textContent = '닉네임을 2자 이상 입력하세요.'; return; }
+  btn.disabled = true; err.textContent = '';
+  try {
+    if (authMode === 'signup') {
+      const cred = await fb.createUserWithEmailAndPassword(fb.auth, email, pw);
+      await fb.updateProfile(cred.user, { displayName: nick });
+      await fb.setDoc(fb.doc(fb.db,'users',cred.user.uid), { nick, email, joinedAt: new Date().toISOString() });
+    } else {
+      await fb.signInWithEmailAndPassword(fb.auth, email, pw);
+    }
+  } catch(e) {
+    const MAP = {
+      'auth/email-already-in-use':'이미 사용 중인 이메일이에요.',
+      'auth/invalid-email':'이메일 형식이 올바르지 않아요.',
+      'auth/wrong-password':'비밀번호가 틀렸어요.',
+      'auth/user-not-found':'등록된 계정이 없어요. 회원가입 먼저 해주세요.',
+      'auth/weak-password':'비밀번호는 6자 이상이어야 해요.',
+      'auth/too-many-requests':'잠시 후 다시 시도해주세요.',
+      'auth/invalid-credential':'이메일 또는 비밀번호가 틀렸어요.',
+      'auth/api-key-not-valid':'Firebase API 키가 설정되지 않았어요. SETUP.md를 확인하세요.'
+    };
+    err.textContent = MAP[e.code] || e.message;
+    btn.disabled = false;
+  }
+}
+
+async function doLogout() {
+  if (!confirm('로그아웃 할까요?')) return;
+  if (unsubFeed) unsubFeed();
+  await fb.signOut(fb.auth);
+}
+
+function showAuth() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('authWrap').style.display = 'block';
+  setMode('login');
+}
+
+function showApp() {
+  document.getElementById('authWrap').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  initApp();
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+async function initApp() {
+  const nick = me.displayName || me.email.split('@')[0];
+  document.getElementById('profAv').textContent = nick[0].toUpperCase();
+  document.getElementById('profName').textContent = nick;
+  document.getElementById('profEmail').textContent = me.email;
+
+  initQtags();
+  await loadMyLogs();
+  updateStats();
+  renderWeek();
+  renderCal();
+  startFeed();
+}
+
+function initQtags() {
+  document.querySelectorAll('#qtags .qt').forEach(el => {
+    el.addEventListener('click', () => {
+      el.classList.toggle('on');
+      const tag = el.dataset.tag;
+      const ta = document.getElementById('fWText');
+      if (el.classList.contains('on')) ta.value = ta.value ? ta.value + ' ' + tag : tag;
+      else ta.value = ta.value.replace(' ' + tag, '').replace(tag, '').trim();
+    });
+  });
+}
+
+// ══════════════════════════════════════════
+//  TYPE SWITCHER
+// ══════════════════════════════════════════
+function setType(t) {
+  curType = t;
+  document.querySelectorAll('.tp').forEach(el => {
+    el.className = 'tp' + (el.dataset.t === t ? ` on-${t}` : '');
+  });
+  ['w','r','d'].forEach(s => {
+    document.getElementById('fs-'+s).classList.toggle('vis', s === t);
+  });
+  const saveBtn = document.getElementById('saveBtn');
+  const colors = { w:'l', r:'o', b:'b' };
+  saveBtn.className = `sbtn ${t === 'w' ? 'l' : t === 'r' ? 'o' : 'b'}`;
+  const ph = { w:'💪 운동 기록 저장', r:'🏃 런닝 기록 저장', d:'🥗 식단 기록 저장' };
+  saveBtn.textContent = ph[t];
+  // reset form
+  document.getElementById('fTitle').value = '';
+  document.getElementById('fWText').value = '';
+  document.getElementById('fDist').value = '';
+  document.getElementById('fTime').value = '';
+  document.getElementById('fRCal').value = '';
+  document.getElementById('fBpm').value = '';
+  document.getElementById('fRText').value = '';
+  document.getElementById('fDCal').value = '';
+  document.getElementById('fPro').value = '';
+  document.getElementById('fCarb').value = '';
+  document.getElementById('fFat').value = '';
+  document.getElementById('fDText').value = '';
+  document.getElementById('paceDisp').textContent = '—';
+  curPhotos = []; renderPrev();
+  document.querySelectorAll('#qtags .qt.on').forEach(e => e.classList.remove('on'));
+}
+
+// ══════════════════════════════════════════
+//  PHOTOS
+// ══════════════════════════════════════════
+//  📸 사진 처리 (압축 후 base64 → Firestore)
+// ══════════════════════════════════════════
+function handlePhoto(input) {
+  const remaining = 2 - curPhotos.length;
+  if (remaining <= 0) { toast('사진은 최대 2장까지 가능해요!'); input.value=''; return; }
+  const files = Array.from(input.files).slice(0, remaining);
+  files.forEach(f => {
+    const r = new FileReader();
+    r.onload = e => {
+      compressImg(e.target.result, 480, 0.5).then(compressed => {
+        curPhotos.push(compressed);
+        renderPrev();
+      });
+    };
+    r.readAsDataURL(f);
+  });
+  input.value = '';
+}
+
+function compressImg(dataUrl, maxSize, quality) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * ratio);
+      c.height = Math.round(img.height * ratio);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', quality));
+    };
+    img.src = dataUrl;
+  });
+}
+
+function renderPrev() {
+  const prev = document.getElementById('photoPrev');
+  if (!prev) return;
+  prev.innerHTML = curPhotos.map((src, i) => `
+    <div class="prev-thumb">
+      <img src="${src}" loading="lazy">
+      <button class="del-p" onclick="delPhoto(${i})">✕</button>
+    </div>`).join('');
+  const drop = document.getElementById('photoDropArea');
+  if (drop) drop.style.display = curPhotos.length >= 2 ? 'none' : 'block';
+}
+
+function delPhoto(i) {
+  curPhotos.splice(i, 1);
+  const drop = document.getElementById('photoDropArea');
+  if (drop) drop.style.display = 'block';
+  renderPrev();
+}
+
+// ══════════════════════════════════════════
+//  SAVE LOG
+// ══════════════════════════════════════════
+async function saveLog() {
+  const btn = document.getElementById('saveBtn');
+  const nick = me.displayName || me.email.split('@')[0];
+  btn.disabled = true;
+  const btnTxt = btn.textContent;
+  btn.textContent = '저장 중...';
+
+  try {
+    const now = new Date().toISOString();
+    const entry = { uid: me.uid, user: nick, type: curType, createdAt: now, photos: [...curPhotos], likes: [], comments: [] };
+    const title = document.getElementById('fTitle').value.trim();
+
+    if (curType === 'w') {
+      const text = document.getElementById('fWText').value.trim();
+      if (!text) { toast('운동 내용을 입력하세요!'); btn.disabled=false; btn.textContent=btnTxt; return; }
+      entry.title = title || '오늘의 운동';
+      entry.content = text;
+      entry.tags = [...new Set([...text.matchAll(/#[가-힣a-zA-Z0-9]+/g)].map(m=>m[0]))];
+    } else if (curType === 'r') {
+      const dist = parseFloat(document.getElementById('fDist').value) || 0;
+      if (!dist) { toast('거리를 입력하세요!'); btn.disabled=false; btn.textContent=btnTxt; return; }
+      const time = parseFloat(document.getElementById('fTime').value) || 0;
+      entry.title = title || `${dist}km 런닝`;
+      entry.dist = dist; entry.time = time;
+      entry.cal = parseInt(document.getElementById('fRCal').value) || 0;
+      entry.bpm = parseInt(document.getElementById('fBpm').value) || 0;
+      entry.content = document.getElementById('fRText').value.trim();
+      if (time > 0 && dist > 0) {
+        const pm = Math.floor(time/dist), ps = Math.round(((time/dist)-pm)*60);
+        entry.pace = `${pm}'${String(ps).padStart(2,'0')}"`;
+      }
+    } else {
+      const text = document.getElementById('fDText').value.trim();
+      if (!text) { toast('식단 내용을 입력하세요!'); btn.disabled=false; btn.textContent=btnTxt; return; }
+      entry.meal = document.getElementById('fMeal').value;
+      entry.title = title || entry.meal + ' 식단';
+      entry.content = text;
+      entry.cal = parseInt(document.getElementById('fDCal').value) || 0;
+      entry.protein = parseInt(document.getElementById('fPro').value) || 0;
+      entry.carb = parseInt(document.getElementById('fCarb').value) || 0;
+      entry.fat = parseInt(document.getElementById('fFat').value) || 0;
+    }
+
+    const docRef = await fb.addDoc(fb.collection(fb.db,'logs'), entry);
+
+    await loadMyLogs();
+    updateStats();
+    renderWeek();
+    renderCal();
+    setType(curType);
+    toast('✅ 저장 완료!');
+  } catch(e) {
+    toast('오류: ' + e.message);
+    console.error(e);
+  }
+  btn.disabled = false; btn.textContent = btnTxt;
+}
+
+// ══════════════════════════════════════════
+//  MY LOGS
+// ══════════════════════════════════════════
+async function loadMyLogs() {
+  const q = fb.query(fb.collection(fb.db,'logs'), fb.where('uid','==',me.uid), fb.orderBy('createdAt','desc'), fb.limit(300));
+  const snap = await fb.getDocs(q);
+  myLogs = snap.docs.map(d => ({id:d.id,...d.data()}));
+}
+
+// ══════════════════════════════════════════
+//  STATS + CHART
+// ══════════════════════════════════════════
+function updateStats() {
+  const w = myLogs.filter(l=>l.type==='w'), r = myLogs.filter(l=>l.type==='r'), d = myLogs.filter(l=>l.type==='d');
+  document.getElementById('s-wt').textContent = w.length;
+  document.getElementById('s-rt').textContent = r.length;
+  document.getElementById('s-dt').textContent = d.length;
+  document.getElementById('pp-w').textContent = w.length;
+  document.getElementById('pp-r').textContent = r.length;
+  document.getElementById('pp-d').textContent = d.length;
+  document.getElementById('streakPill').textContent = `🔥 ${calcStreak(w)}일`;
+}
+
+function calcStreak(logs) {
+  const dates = [...new Set(logs.map(l=>l.createdAt.slice(0,10)))].sort().reverse();
+  let streak = 0; const cur = new Date(); cur.setHours(0,0,0,0);
+  for (const d of dates) {
+    const c = cur.toISOString().slice(0,10);
+    if (d === c) { streak++; cur.setDate(cur.getDate()-1); } else if (d < c) break;
+  }
+  return streak;
+}
+
+function renderWeek() {
+  const chart = document.getElementById('wchart'); chart.innerHTML = '';
+  const days = []; for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
+  days.forEach(d => {
+    const wc = myLogs.filter(l=>l.type==='w'&&l.createdAt.slice(0,10)===d).length;
+    const rc = myLogs.filter(l=>l.type==='r'&&l.createdAt.slice(0,10)===d).length;
+    const dc = myLogs.filter(l=>l.type==='d'&&l.createdAt.slice(0,10)===d).length;
+    const tot = wc+rc+dc;
+    const wrap = document.createElement('div'); wrap.className='wb';
+    const bar = document.createElement('div');
+    const cls = tot===0?'e':wc>=rc&&wc>=dc?'l':rc>=dc?'o':'b';
+    bar.className=`wbar ${cls}`; bar.style.height=(tot===0?4:Math.min(8+tot*14,56))+'px';
+    const lbl = document.createElement('div'); lbl.className='wbl';
+    lbl.textContent = KD[new Date(d+'T12:00:00').getDay()];
+    wrap.appendChild(bar); wrap.appendChild(lbl); chart.appendChild(wrap);
+  });
+}
+
+// ══════════════════════════════════════════
+//  PACE
+// ══════════════════════════════════════════
+function calcPace() {
+  const dist = parseFloat(document.getElementById('fDist').value)||0;
+  const time = parseFloat(document.getElementById('fTime').value)||0;
+  const el = document.getElementById('paceDisp');
+  if (dist>0&&time>0) { const pm=Math.floor(time/dist),ps=Math.round(((time/dist)-pm)*60); el.textContent=`${pm}'${String(ps).padStart(2,'0')}"`; }
+  else el.textContent='—';
+}
+
+// ══════════════════════════════════════════
+//  CALENDAR
+// ══════════════════════════════════════════
+function renderCal() {
+  const y = calDate.getFullYear(), m = calDate.getMonth();
+  document.getElementById('calTitle').textContent = `${y}년 ${m+1}월`;
+  const today = new Date().toISOString().slice(0,10);
+  const firstDay = new Date(y,m,1).getDay();
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  const logDates = {};
+  myLogs.forEach(l => {
+    const d = l.createdAt.slice(0,10);
+    if (!logDates[d]) logDates[d] = new Set();
+    logDates[d].add(l.type);
+  });
+  let html = KD.map(d=>`<div class="cdl">${d}</div>`).join('');
+  html += Array(firstDay).fill('<div class="cd empty"></div>').join('');
+  for (let d=1; d<=daysInMonth; d++) {
+    const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const types = logDates[ds] || new Set();
+    const isToday = ds===today;
+    let cls='cd';
+    if (types.size>1) cls+=' has-m';
+    else if (types.has('w')) cls+=' has';
+    else if (types.has('r')) cls+=' has-r';
+    else if (types.has('d')) cls+=' has-d';
+    if (isToday) cls+=' today';
+    let dots='';
+    if (types.has('w')) dots+=`<span style="background:var(--lime)"></span>`;
+    if (types.has('r')) dots+=`<span style="background:var(--orange)"></span>`;
+    if (types.has('d')) dots+=`<span style="background:var(--blue)"></span>`;
+    html += `<div class="${cls}" onclick="selectDate('${ds}')">${d}<div class="cd-dot">${dots}</div></div>`;
+  }
+  document.getElementById('calGrid').innerHTML = html;
+  if (selectedDate) selectDate(selectedDate);
+}
+
+function selectDate(ds) {
+  selectedDate = ds;
+  const d = new Date(ds + 'T00:00:00');
+  document.getElementById('calDayLabel').textContent = `${d.getMonth()+1}월 ${d.getDate()}일 (${KD[d.getDay()]}) 기록`;
+  const logs = myLogs.filter(l=>l.createdAt.slice(0,10)===ds);
+  const el = document.getElementById('calDayLogs');
+  if (!logs.length) {
+    el.innerHTML='<div class="empty"><div class="empty-ico">🏋️</div><div class="empty-txt">이 날은 기록이 없어요</div></div>';
+    return;
+  }
+  el.innerHTML = logs.map(log => {
+    const tl = log.type==='w'?'💪 운동':log.type==='r'?'🏃 런닝':'🥗 식단';
+    return `<div class="day-log-item" onclick="openMod('${log.id}',true)">
+      <div class="dli-top">
+        <div class="dli-type ${log.type}">${tl}</div>
+        <span style="font-size:11px;color:var(--tx3)">${new Date(log.createdAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</span>
+      </div>
+      <div class="dli-title">${log.title||''}</div>
+      ${log.content?`<div class="dli-preview">${log.content}</div>`:''}
+      ${log.type==='r'&&log.dist?`<div style="font-size:12px;color:var(--orange);margin-top:4px;font-weight:500">${log.dist}km${log.pace?' · '+log.pace:''}</div>`:''}
+      ${log.type==='d'&&log.cal?`<div style="font-size:12px;color:var(--blue);margin-top:4px;font-weight:500">${log.cal}kcal</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function changeMonth(dir) {
+  calDate.setMonth(calDate.getMonth()+dir);
+  selectedDate = null;
+  document.getElementById('calDayLabel').textContent = '기록 선택';
+  document.getElementById('calDayLogs').innerHTML = '<div class="empty"><div class="empty-ico">📅</div><div class="empty-txt">날짜를 탭해서 기록을 확인하세요</div></div>';
+  renderCal();
+}
+
+// ══════════════════════════════════════════
+//  FEED + COMMENTS (realtime)
+// ══════════════════════════════════════════
+function setFeed(f, el) {
+  curFilter = f;
+  document.querySelectorAll('.fp').forEach(p=>p.className='fp');
+  if (f==='all') el.className='fp fl-a';
+  else if (f==='r') el.className='fp fl-r';
+  else if (f==='d') el.className='fp fl-d';
+  else el.className='fp fl-a';
+  renderFeed();
+}
+
+function startFeed() {
+  const q = fb.query(fb.collection(fb.db,'logs'), fb.orderBy('createdAt','desc'), fb.limit(60));
+  unsubFeed = fb.onSnapshot(q, snap => {
+    feedLogs = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderFeed();
+  });
+}
+
+function renderFeed() {
+  const el = document.getElementById('feedList');
+  let list = curFilter==='all'?feedLogs:feedLogs.filter(l=>l.type===curFilter);
+  if (!list.length) { el.innerHTML='<div class="empty"><div class="empty-ico">💬</div><div class="empty-txt">아직 기록이 없어요!</div></div>'; return; }
+  el.innerHTML = list.map(log => feedCard(log)).join('');
+}
+
+function feedCard(log) {
+  const nick = me.displayName || me.email.split('@')[0];
+  const likes = log.likes || [];
+  const liked = likes.includes(me.uid);
+  const likeCount = likes.length;
+  const cmts = log.comments || [];
+  const tl = log.type==='w'?'💪 운동':log.type==='r'?'🏃 런닝':'🥗 식단';
+  const photos = log.photos || [];
+
+  // Photos
+  let photoHtml = '';
+  if (photos.length===1) {
+    photoHtml = `<div class="feed-photos s1"><img src="${photos[0]}" loading="lazy"></div>`;
+  } else if (photos.length===2) {
+    photoHtml = `<div class="feed-photos s2">${photos.map(p=>`<img src="${p}" loading="lazy">`).join('')}</div>`;
+  } else if (photos.length>=3) {
+    photoHtml = `<div class="feed-photos s3"><img src="${photos[0]}" loading="lazy"><div class="side">${photos.slice(1,3).map(p=>`<img src="${p}" loading="lazy">`).join('')}</div></div>`;
+  }
+
+  // Run stats
+  let extra = '';
+  if (log.type==='r'&&log.dist) {
+    extra = `<div class="run-row">
+      <div class="rr"><div class="rr-v">${log.dist}km</div><div class="rr-l">거리</div></div>
+      ${log.time?`<div class="rr"><div class="rr-v">${log.time}분</div><div class="rr-l">시간</div></div>`:''}
+      ${log.pace?`<div class="rr"><div class="rr-v">${log.pace}</div><div class="rr-l">페이스</div></div>`:''}
+      ${log.cal?`<div class="rr"><div class="rr-v">${log.cal}</div><div class="rr-l">kcal</div></div>`:''}
+    </div>`;
+  }
+  if (log.type==='d'&&log.cal) {
+    extra = `<div class="fi-body"><div class="macro-row">${log.cal}kcal${log.protein?` · 단 ${log.protein}g`:''}${log.carb?` · 탄 ${log.carb}g`:''}${log.fat?` · 지 ${log.fat}g`:''}</div></div>`;
+  }
+
+  // Comments (show if open)
+  const cmtOpen = openCmtIds.has(log.id);
+  const cmtsHtml = cmtOpen ? `
+    <div class="cmts-wrap">
+      ${cmts.length===0?`<div style="padding:12px 0;font-size:12px;color:var(--tx3);text-align:center">첫 댓글을 남겨보세요!</div>`:''}
+      ${cmts.map(c=>`
+        <div class="cmt-item">
+          <div class="cmt-av">${c.user[0].toUpperCase()}</div>
+          <div class="cmt-body">
+            <div class="cmt-name">${c.user}</div>
+            <div class="cmt-text">${escHtml(c.text)}</div>
+            <div class="cmt-time">${timeAgo(c.createdAt)}</div>
+          </div>
+          ${c.uid===me.uid?`<button class="cmt-del" onclick="delComment('${log.id}','${c.id}')">삭제</button>`:''}
+        </div>`).join('')}
+    </div>
+    <div class="cmt-input-row">
+      <input class="cmt-fi" id="ci-${log.id}" placeholder="댓글 달기..." maxlength="200"
+             onkeydown="if(event.key==='Enter')sendComment('${log.id}')">
+      <button class="cmt-send" onclick="sendComment('${log.id}')">전송</button>
+    </div>` : '';
+
+  return `<div class="fi-card" id="fc-${log.id}">
+    <div class="fi-hdr">
+      <div class="fi-user">
+        <div class="av ${log.type}">${(log.user||'?')[0].toUpperCase()}</div>
+        <div>
+          <div class="fi-name">${log.user||'익명'}</div>
+          <div class="fi-time">${timeAgo(log.createdAt)}</div>
+        </div>
+      </div>
+      <div class="tb ${log.type}">${tl}</div>
+    </div>
+    ${extra}
+    <div class="fi-body">
+      <div class="fi-title" style="cursor:pointer" onclick="openMod('${log.id}',false)">${log.title||''}</div>
+      ${log.content?`<div class="fi-txt">${escHtml(log.content)}</div>`:''}
+    </div>
+    ${photoHtml}
+    <div class="fi-foot">
+      <button class="like-b ${liked?'on':''}" onclick="toggleLike('${log.id}')">
+        <svg viewBox="0 0 24 24" fill="${liked?'currentColor':'none'}" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        ${likeCount}
+      </button>
+      <button class="cmt-b" onclick="toggleCmt('${log.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        ${cmts.length} 댓글
+      </button>
+    </div>
+    ${cmtsHtml}
+  </div>`;
+}
+
+// ── LIKE ──
+async function toggleLike(logId) {
+  const log = feedLogs.find(l=>l.id===logId); if(!log) return;
+  const likes = log.likes||[];
+  const op = likes.includes(me.uid) ? fb.arrayRemove(me.uid) : fb.arrayUnion(me.uid);
+  await fb.updateDoc(fb.doc(fb.db,'logs',logId), { likes: op });
+}
+
+// ── COMMENTS ──
+function toggleCmt(logId) {
+  if (openCmtIds.has(logId)) openCmtIds.delete(logId);
+  else openCmtIds.add(logId);
+  renderFeed();
+  if (openCmtIds.has(logId)) {
+    setTimeout(() => {
+      const ci = document.getElementById('ci-'+logId);
+      if (ci) ci.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    }, 100);
+  }
+}
+
+async function sendComment(logId) {
+  const input = document.getElementById('ci-'+logId);
+  const text = input.value.trim();
+  if (!text) return;
+  const nick = me.displayName || me.email.split('@')[0];
+  const cmt = { id: Date.now().toString(), uid: me.uid, user: nick, text, createdAt: new Date().toISOString() };
+  input.value = '';
+  await fb.updateDoc(fb.doc(fb.db,'logs',logId), { comments: fb.arrayUnion(cmt) });
+}
+
+async function delComment(logId, cmtId) {
+  const log = feedLogs.find(l=>l.id===logId); if(!log) return;
+  const cmt = (log.comments||[]).find(c=>c.id===cmtId); if(!cmt) return;
+  await fb.updateDoc(fb.doc(fb.db,'logs',logId), { comments: fb.arrayRemove(cmt) });
+}
+
+// ── MODAL ──
+function openMod(id, fromMyLogs) {
+  const log = fromMyLogs ? myLogs.find(l=>l.id===id) : feedLogs.find(l=>l.id===id);
+  if (!log) return;
+  const photos = log.photos||[];
+  let imgHtml = '';
+  if (photos.length===1) imgHtml=`<img src="${photos[0]}" style="width:100%;max-height:280px;object-fit:cover;border-radius:var(--r) var(--r) 0 0;display:block">`;
+  else if (photos.length>1) imgHtml=`<div class="mod-imgs-grid">${photos.slice(0,4).map(p=>`<img src="${p}">`).join('')}</div>`;
+  document.getElementById('modImgs').innerHTML = imgHtml;
+  const tl=log.type==='w'?'💪 운동':log.type==='r'?'🏃 런닝':'🥗 식단';
+  const mt=document.getElementById('modType'); mt.className=`mod-type ${log.type}`; mt.textContent=`${tl} · ${log.user||''}`;
+  document.getElementById('modTitle').textContent=log.title||'';
+  document.getElementById('modDate').textContent=new Date(log.createdAt).toLocaleString('ko-KR');
+  let stats='';
+  if(log.type==='r'&&log.dist) stats=`<div class="mod-stats">
+    <div class="mst"><div class="mst-v o">${log.dist}km</div><div class="mst-l">거리</div></div>
+    ${log.time?`<div class="mst"><div class="mst-v o">${log.time}분</div><div class="mst-l">시간</div></div>`:''}
+    ${log.pace?`<div class="mst"><div class="mst-v o">${log.pace}</div><div class="mst-l">페이스</div></div>`:''}
+    ${log.cal?`<div class="mst"><div class="mst-v o">${log.cal}</div><div class="mst-l">kcal</div></div>`:''}
+  </div>`;
+  if(log.type==='d'&&log.cal) stats=`<div class="mod-stats">
+    ${log.cal?`<div class="mst"><div class="mst-v b">${log.cal}</div><div class="mst-l">kcal</div></div>`:''}
+    ${log.protein?`<div class="mst"><div class="mst-v b">${log.protein}g</div><div class="mst-l">단백질</div></div>`:''}
+    ${log.carb?`<div class="mst"><div class="mst-v b">${log.carb}g</div><div class="mst-l">탄수화물</div></div>`:''}
+    ${log.fat?`<div class="mst"><div class="mst-v b">${log.fat}g</div><div class="mst-l">지방</div></div>`:''}
+  </div>`;
+  document.getElementById('modStats').innerHTML=stats;
+  document.getElementById('modText').textContent=log.content||'';
+  document.getElementById('modOv').classList.add('on');
+}
+function closeMod() { document.getElementById('modOv').classList.remove('on'); }
+
+// ══════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════
+function goTab(i) {
+  ['pg0','pg1','pg2','pg3'].forEach((id,idx)=>document.getElementById(id).classList.toggle('on',idx===i));
+  document.querySelectorAll('.nb').forEach((b,idx)=>b.classList.toggle('on',idx===i));
+  if(i===1) renderCal();
+}
+
+function timeAgo(iso) {
+  const d=Date.now()-new Date(iso);
+  if(d<60000) return '방금 전';
+  if(d<3600000) return Math.floor(d/60000)+'분 전';
+  if(d<86400000) return Math.floor(d/3600000)+'시간 전';
+  if(d<604800000) return Math.floor(d/86400000)+'일 전';
+  return new Date(iso).toLocaleDateString('ko-KR');
+}
+
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'),2400);
+}
+</script>
+</body>
+</html>
