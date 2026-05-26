@@ -19,6 +19,8 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
 import { getFirestore, collection, addDoc, getDocs, query, orderBy,
          limit, onSnapshot, doc, updateDoc, where, setDoc, getDoc, deleteDoc }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getMessaging, getToken, onMessage }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
 const firebaseConfig = {
   apiKey:            "AIzaSyCvVJLfkir1jjcdlELRRCuSos5OTv7wt-o",
@@ -33,11 +35,13 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-window._fb = { auth, db,
+const messaging = getMessaging(app);
+window._fb = { auth, db, messaging, getToken, onMessage,
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
   signOut, onAuthStateChanged, updateProfile,
   collection, addDoc, getDocs, query, orderBy, limit,
   onSnapshot, doc, updateDoc, where, setDoc, getDoc, deleteDoc };
+window.VAPID_KEY = 'BAN8CYYsuWlpSayJ64-KUDxFXIYsy21D6_eJ2xvetnZruPWk_2OpTniuxr-Vl8XyPWTRtO__mMftJuCwr4H_MSI';
 window.dispatchEvent(new Event('fb-ready'));
 </script>
 
@@ -562,6 +566,7 @@ async function initApp(){
   });
   await loadMyLogs();
   updateStats();renderWeek();renderCal();startFeed();
+  setTimeout(initPush, 2000); // 푸시 알림 초기화
 }
 
 // 사진
@@ -855,8 +860,11 @@ async function sendCmt(logId){
   const log=feedLogs.find(l=>l.id===logId);if(!log)return;
   const cmts=[...(log.comments||[]),{id:Date.now().toString(),uid:me.uid,user:nick,text,at:new Date().toISOString()}];
   input.value='';
-  try{await fb.updateDoc(fb.doc(fb.db,'logs',logId),{comments:cmts});}
-  catch(e){toast('댓글 오류: '+e.message);}
+  try{
+    await fb.updateDoc(fb.doc(fb.db,'logs',logId),{comments:cmts});
+    // 글 주인에게 푸시 알림
+    sendPushToOwner(logId, text);
+  }catch(e){toast('댓글 오류: '+e.message);}
 }
 async function delCmt(e,logId,cmtId){
   e.stopPropagation();
@@ -882,6 +890,63 @@ function timeAgo(iso){
 }
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2500);}
+
+// ── 푸시 알림 ──
+async function initPush(){
+  try{
+    // Service Worker 등록
+    if(!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.register('/ironlog-pro/sw.js');
+    
+    // 알림 권한 요청
+    const perm = await Notification.requestPermission();
+    if(perm !== 'granted'){ console.log('알림 거부됨'); return; }
+    
+    // FCM 토큰 가져오기
+    const token = await fb.getToken(fb.messaging, {
+      vapidKey: window.VAPID_KEY,
+      serviceWorkerRegistration: reg
+    });
+    
+    if(token && me){
+      // 토큰을 Firestore에 저장
+      await fb.setDoc(fb.doc(fb.db,'users',me.uid), { fcmToken: token, nick: me.displayName||me.email.split('@')[0], email: me.email }, { merge: true });
+      console.log('푸시 알림 설정 완료!');
+    }
+    
+    // 앱 열려있을 때 알림 처리
+    fb.onMessage(fb.messaging, payload => {
+      const { title, body } = payload.notification || {};
+      if(title) toast('🔔 ' + body);
+    });
+    
+  }catch(e){ console.log('푸시 알림 초기화 오류:', e.message); }
+}
+
+// 댓글 저장 시 상대방에게 푸시 알림 전송
+async function sendPushToOwner(logId, commentText){
+  try{
+    const log = feedLogs.find(l=>l.id===logId);
+    if(!log || log.uid === me.uid) return; // 내 글이면 알림 안 보냄
+    
+    // 글 주인의 FCM 토큰 가져오기
+    const userDoc = await fb.getDoc(fb.doc(fb.db,'users',log.uid));
+    if(!userDoc.exists()) return;
+    const ownerToken = userDoc.data().fcmToken;
+    if(!ownerToken) return;
+    
+    const nick = me.displayName||me.email.split('@')[0];
+    
+    // Firestore에 알림 요청 저장 (sw.js가 처리)
+    await fb.addDoc(fb.collection(fb.db,'notifications'),{
+      to: ownerToken,
+      title: '🐯 TigerFit',
+      body: nick + '님이 댓글을 달았어요: ' + commentText.slice(0,30),
+      createdAt: new Date().toISOString(),
+      read: false
+    });
+  }catch(e){ console.log('알림 전송 오류:', e); }
+}
 </script>
 </body>
 </html>
